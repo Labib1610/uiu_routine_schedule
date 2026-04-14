@@ -33,21 +33,35 @@
 
         <!-- Search Section -->
         <section class="p-6 sm:p-10 border-b border-slate-100">
-            <div class="max-w-md mx-auto">
-                <label for="studentId" class="block text-sm font-semibold text-slate-700 mb-2">Student ID</label>
-                <div class="flex flex-col sm:flex-row shadow-sm rounded-lg">
+            <div class="max-w-2xl mx-auto space-y-6">
+                <!-- ID Input -->
+                <div>
+                    <label for="studentId" class="block text-sm font-semibold text-slate-700 mb-2">1. Your exact Student ID <span class="text-red-500">*</span></label>
                     <input type="text" id="studentId" placeholder="e.g., 011201341" 
-                        class="flex-1 min-w-0 block w-full px-4 py-3 sm:text-sm border-slate-300 border focus:ring-indigo-500 focus:border-indigo-500 rounded-t-lg sm:rounded-none sm:rounded-l-lg outline-none transition-colors" 
+                        class="w-full px-4 py-3 sm:text-sm border-slate-300 border focus:ring-indigo-500 focus:border-indigo-500 rounded-lg outline-none transition-colors shadow-sm" 
                         onkeypress="if(event.key === 'Enter') handleSearch()">
-                    <button onclick="handleSearch()" 
-                        class="inline-flex items-center justify-center px-6 py-3 border border-transparent text-sm font-semibold rounded-b-lg sm:rounded-none sm:rounded-r-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors">
-                        <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                        </svg>
-                        Search
-                    </button>
                 </div>
-                <p class="text-xs text-slate-500 mt-3 text-center">Make sure to type your exact ID to find matching intervals.</p>
+                
+                <!-- Course Filter Input -->
+                <div>
+                    <label for="courseSearch" class="block text-sm font-semibold text-slate-700 mb-1">2. Select Your Courses (To filter accurately)</label>
+                    <p class="text-xs text-slate-500 mb-2">Pick your registered courses so you don't see exams for other people with adjacent IDs.</p>
+                    <input type="text" id="courseSearch" list="courseList" placeholder="Type course code or name and select..." 
+                        class="w-full px-4 py-3 sm:text-sm border-slate-300 border focus:ring-indigo-500 focus:border-indigo-500 rounded-lg outline-none transition-colors shadow-sm" 
+                        onchange="handleAddCourse(event)" onkeypress="if(event.key === 'Enter') handleAddCourse(event)">
+                    <datalist id="courseList"></datalist>
+                    
+                    <!-- Selected Course Badges -->
+                    <div id="courseChips" class="flex flex-wrap gap-2 mt-3"></div>
+                </div>
+
+                <button onclick="handleSearch()" 
+                    class="w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-sm font-semibold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors shadow-sm">
+                    <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                    </svg>
+                    Show My Exact Routine
+                </button>
             </div>
 
             <!-- Loader -->
@@ -120,6 +134,7 @@
         const TARGET_XLSX = 'Mid-term-exam-schedule_SoSE_261_notice-board.xlsx';
         
         let GLOBAL_DATA = null;
+        let selectedCourses = [];
 
         // Start initialization automatically
         window.addEventListener('DOMContentLoaded', async () => {
@@ -151,6 +166,7 @@
                 const sheet = workbook.Sheets[mainSheetName];
                 // Using defval to ensure empty cells don't break key lookups
                 GLOBAL_DATA = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+                populateCourseList();
                 showLoader(false);
                 
                 // If user typed ID while it was loading
@@ -162,6 +178,66 @@
                 alert("Failed to parse the Excel file. Please ensure it's a valid XLSX.");
                 showLoader(false);
             }
+        }
+
+        // --- Course Filter Logic ---
+        function populateCourseList() {
+            const courseList = document.getElementById('courseList');
+            if(!courseList) return;
+            courseList.innerHTML = '';
+            const unique = new Set();
+            GLOBAL_DATA.forEach(row => {
+                const code = row['Course Code'] ? row['Course Code'].toString().trim() : '';
+                const title = row['Course Title'] ? row['Course Title'].toString().trim() : '';
+                if(code || title) {
+                    unique.add(`${code} - ${title}`);
+                }
+            });
+            Array.from(unique).sort().forEach(course => {
+                const opt = document.createElement('option');
+                opt.value = course;
+                courseList.appendChild(opt);
+            });
+        }
+
+        function handleAddCourse(event) {
+            const val = event.target.value.trim();
+            if(!val) return;
+            if(!selectedCourses.includes(val)) {
+                selectedCourses.push(val);
+                renderChips();
+            }
+            event.target.value = '';
+            
+            // Auto search if ID already provided
+            if (document.getElementById('studentId').value.trim()) {
+                handleSearch();
+            }
+        }
+        
+        function removeCourseBox(val) {
+            selectedCourses = selectedCourses.filter(c => c !== val);
+            renderChips();
+            if (document.getElementById('studentId').value.trim()) {
+                handleSearch();
+            }
+        }
+        
+        function renderChips() {
+            const container = document.getElementById('courseChips');
+            container.innerHTML = '';
+            selectedCourses.forEach(c => {
+                const el = document.createElement('span');
+                el.className = 'inline-flex items-center py-1.5 pl-3 pr-2 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800 break-words';
+                // Using maximum widths and text truncation so huge titles don't stretch
+                el.innerHTML = `<span class="truncate max-w-[200px] sm:max-w-xs" title="${c}">${c}</span> 
+                <button type="button" onclick="removeCourseBox('${c}')" class="flex-shrink-0 ml-1.5 h-5 w-5 rounded-full inline-flex items-center justify-center text-indigo-400 hover:bg-indigo-300 hover:text-indigo-600 focus:outline-none">
+                    <svg class="h-3 w-3" stroke="currentColor" fill="none" viewBox="0 0 8 8">
+                        <path stroke-linecap="round" stroke-width="1.5" d="M1 1l6 6m0-6L1 7" />
+                    </svg>
+                </button>`;
+                container.appendChild(el);
+            });
         }
 
         // Triggered when file selected via fallback
@@ -217,6 +293,15 @@
             GLOBAL_DATA.forEach(row => {
                 const roomData = row['Room'] || '';
                 if (!roomData.trim()) return;
+
+                const code = row['Course Code'] ? row['Course Code'].toString().trim() : '';
+                const title = row['Course Title'] ? row['Course Title'].toString().trim() : '';
+                const rowLabel = `${code} - ${title}`;
+
+                // Skip if user set course filters and this row isn't one of them
+                if (selectedCourses.length > 0 && !selectedCourses.includes(rowLabel)) {
+                    return;
+                }
 
                 // Format -> RoomName (011201001-011201100) ...
                 const intervalRegex = /([a-zA-Z0-9\s]+?)\s*\(([\da-zA-Z]+)-([\da-zA-Z]+)\)/g;
