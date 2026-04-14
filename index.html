@@ -33,13 +33,18 @@
 
         <!-- Search Section -->
         <section class="p-6 sm:p-10 border-b border-slate-100">
-            <div class="max-w-md mx-auto space-y-6">
-                <!-- ID Input -->
+            <div class="max-w-2xl mx-auto space-y-6">
+                <!-- Course Filter Input -->
                 <div>
-                    <label for="studentId" class="block text-sm font-semibold text-slate-700 mb-2">Your exact Student ID <span class="text-red-500">*</span></label>
-                    <input type="text" id="studentId" placeholder="e.g., 011201341" 
+                    <label for="courseSearch" class="block text-sm font-semibold text-slate-700 mb-1">Search & Select Your Courses</label>
+                    <p class="text-xs text-slate-500 mb-2">Type your course code or name to find your exact section, then click to add it to your list.</p>
+                    <input type="text" id="courseSearch" list="courseList" placeholder="e.g., ACT 111 (Sec D) or Financial Accounting..." 
                         class="w-full px-4 py-3 sm:text-sm border-slate-300 border focus:ring-indigo-500 focus:border-indigo-500 rounded-lg outline-none transition-colors shadow-sm" 
-                        onkeypress="if(event.key === 'Enter') handleSearch()">
+                        onchange="handleAddCourse(event)" onkeypress="if(event.key === 'Enter') handleAddCourse(event)">
+                    <datalist id="courseList"></datalist>
+                    
+                    <!-- Selected Course Badges -->
+                    <div id="courseChips" class="flex flex-wrap gap-2 mt-3"></div>
                 </div>
 
                 <button onclick="handleSearch()" 
@@ -47,7 +52,7 @@
                     <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                     </svg>
-                    Search Routine
+                    Show My Exam Schedule
                 </button>
             </div>
 
@@ -86,15 +91,15 @@
         <section id="resultsSection" class="p-6 sm:p-10 bg-slate-50 hidden fade-in">
             <h2 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
                 <svg class="w-6 h-6 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                Matches for <span id="displayId" class="text-indigo-600 font-mono tracking-wider ml-1 bg-indigo-50 px-2 py-1 rounded"></span>
+                Matches for <span id="displayId" class="text-indigo-600 font-mono tracking-wider ml-1 px-2 py-1 rounded">Your Selected Courses</span>
             </h2>
 
             <div id="emptyState" class="hidden text-center py-12">
                 <svg class="mx-auto h-16 w-16 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
-                <h3 class="mt-4 text-lg font-medium text-slate-900">No Exams Found</h3>
-                <p class="mt-1 text-slate-500 max-w-sm mx-auto">We couldn't find your ID in any of the room intervals. Please double-check your ID or the routine file.</p>
+                <h3 class="mt-4 text-lg font-medium text-slate-900">No Courses Selected</h3>
+                <p class="mt-1 text-slate-500 max-w-sm mx-auto">Please select at least one course from the search bar above to see your routine.</p>
             </div>
 
             <!-- Grid for Cards -->
@@ -121,6 +126,7 @@
         const TARGET_XLSX = 'routine.xlsx';
         
         let GLOBAL_DATA = null;
+        let selectedCourses = [];
 
         // Start initialization automatically
         window.addEventListener('DOMContentLoaded', async () => {
@@ -152,17 +158,68 @@
                 const sheet = workbook.Sheets[mainSheetName];
                 // Using defval to ensure empty cells don't break key lookups
                 GLOBAL_DATA = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+                populateCourseList();
                 showLoader(false);
-                
-                // If user typed ID while it was loading
-                if (document.getElementById('studentId').value.trim()) {
-                    handleSearch();
-                }
             } catch(e) {
                 console.error("Parse Error:", e);
                 alert("Failed to parse the Excel file. Please ensure it's a valid XLSX.");
                 showLoader(false);
             }
+        }
+
+        // --- Course Filter Logic ---
+        function populateCourseList() {
+            const courseList = document.getElementById('courseList');
+            if(!courseList) return;
+            courseList.innerHTML = '';
+            const unique = new Set();
+            GLOBAL_DATA.forEach(row => {
+                const code = row['Course Code'] ? row['Course Code'].toString().trim() : '';
+                const title = row['Course Title'] ? row['Course Title'].toString().trim() : '';
+                const section = row['Section'] ? row['Section'].toString().trim() : '';
+                if(code || title) {
+                    const label = `${code} - ${title} (Sec ${section})`;
+                    unique.add(label);
+                }
+            });
+            Array.from(unique).sort().forEach(course => {
+                const opt = document.createElement('option');
+                opt.value = course;
+                courseList.appendChild(opt);
+            });
+        }
+
+        function handleAddCourse(event) {
+            const val = event.target.value.trim();
+            if(!val) return;
+            if(!selectedCourses.includes(val)) {
+                selectedCourses.push(val);
+                renderChips();
+            }
+            event.target.value = '';
+            handleSearch();
+        }
+        
+        function removeCourseBox(val) {
+            selectedCourses = selectedCourses.filter(c => c !== val);
+            renderChips();
+            handleSearch();
+        }
+        
+        function renderChips() {
+            const container = document.getElementById('courseChips');
+            container.innerHTML = '';
+            selectedCourses.forEach(c => {
+                const el = document.createElement('span');
+                el.className = 'inline-flex items-center py-1.5 pl-3 pr-2 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800 break-words';
+                el.innerHTML = `<span class="truncate max-w-[200px] sm:max-w-xs" title="${c}">${c}</span> 
+                <button type="button" onclick="removeCourseBox('${c}')" class="flex-shrink-0 ml-1.5 h-5 w-5 rounded-full inline-flex items-center justify-center text-indigo-400 hover:bg-indigo-300 hover:text-indigo-600 focus:outline-none">
+                    <svg class="h-3 w-3" stroke="currentColor" fill="none" viewBox="0 0 8 8">
+                        <path stroke-linecap="round" stroke-width="1.5" d="M1 1l6 6m0-6L1 7" />
+                    </svg>
+                </button>`;
+                container.appendChild(el);
+            });
         }
 
         // Triggered when file selected via fallback
@@ -186,136 +243,43 @@
 
         // Search core execution
         function handleSearch() {
-            const inputEl = document.getElementById('studentId');
-            const idRaw = inputEl.value.trim();
-            
-            if (!idRaw) {
-                alert("Please type a valid Student ID first.");
-                inputEl.focus();
-                return;
-            }
-            
             if (!GLOBAL_DATA) {
                 alert("Excel data is still loading or not found. If running locally, please upload it manually.");
                 return;
             }
 
-            // Extract pure numbers
-            const rawNumericStr = idRaw.replace(/\D/g, '');
-            
             // UI Triggers
             document.getElementById('resultsSection').classList.remove('hidden');
-            document.getElementById('displayId').innerText = idRaw;
             
-            const results = processMatches(rawNumericStr);
+            const results = processMatches();
             renderCards(results);
         }
 
-        // The exact mapping processor
-        function isIdInInterval(studentId, startRaw, endRaw) {
-            studentId = String(studentId).trim();
-            startRaw = String(startRaw).trim();
-            
-            // 1. Single ID match (When the routine lists a specific student, no hyphen)
-            if (!endRaw) {
-                return studentId === startRaw;
-            }
-            
-            endRaw = String(endRaw).trim();
-
-            // 2. Auto-complete short end ranges (e.g., "0152410022 - 63" becomes "0152410063")
-            if (endRaw.length <= 4 && startRaw.length >= 6) {
-                endRaw = startRaw.substring(0, 6) + endRaw;
-            }
-
-            // 3. Strictly extract the 6-digit Prefix (Dept + Batch)
-            let sPrefStr = studentId.substring(0, 6);
-            let aPrefStr = startRaw.substring(0, 6);
-            let bPrefStr = endRaw.substring(0, 6);
-
-            // 4. Extract the remaining digits as the Roll Number
-            let sRollNum = parseInt(studentId.substring(6) || "0", 10);
-            let aRollNum = parseInt(startRaw.substring(6) || "0", 10);
-            let bRollNum = parseInt(endRaw.substring(6) || "0", 10);
-
-            // STRICT FILTER: If the student's 6-digit prefix doesn't EXACTLY match
-            // the start prefix or the end prefix, they DO NOT belong in this interval.
-            // This permanently prevents Department 015 from leaking into other departments.
-            if (sPrefStr !== aPrefStr && sPrefStr !== bPrefStr) {
-                return false;
-            }
-
-            // Compare rolls within the matched prefix
-            if (aPrefStr === bPrefStr) {
-                // Standard interval within the same batch
-                if (sPrefStr === aPrefStr) {
-                    return sRollNum >= aRollNum && sRollNum <= bRollNum;
-                }
-            } else {
-                // Rare interval explicitly bridging two specific adjacent batches
-                if (sPrefStr === aPrefStr) {
-                    return sRollNum >= aRollNum; // From start roll upwards
-                } else if (sPrefStr === bPrefStr) {
-                    return sRollNum <= bRollNum; // Up to end roll
-                }
-            }
-            return false;
-        }
-
-        function processMatches(targetIdStr) {
+        function processMatches() {
             const matches = [];
+
+            if (selectedCourses.length === 0) {
+                return matches;
+            }
 
             GLOBAL_DATA.forEach(row => {
                 const roomData = String(row['Room'] || '');
                 if (!roomData.trim()) return;
 
-                // NEW REGEX: Separates the Room Name from the Parentheses containing the IDs.
-                // It securely captures everything inside the parenthesis, even commas.
-                const roomBlockRegex = /([a-zA-Z0-9\s\-_&]+?)\s*\(([^)]+)\)/g;
-                let blockMatch;
-                let studentAssignedRoom = null;
+                const code = row['Course Code'] ? row['Course Code'].toString().trim() : '';
+                const title = row['Course Title'] ? row['Course Title'].toString().trim() : '';
+                const section = row['Section'] ? row['Section'].toString().trim() : '';
+                const rowLabel = `${code} - ${title} (Sec ${section})`;
 
-                while ((blockMatch = roomBlockRegex.exec(roomData)) !== null) {
-                    const roomName = blockMatch[1].trim();
-                    const idsContent = blockMatch[2]; // Everything inside the ( )
-
-                    // Split by commas to handle multi-range rooms (e.g., "015...020, 015...060")
-                    const intervals = idsContent.split(',');
-
-                    for (let interval of intervals) {
-                        interval = interval.trim();
-                        
-                        if (interval.includes('-')) {
-                            // It's a standard range
-                            const parts = interval.split('-');
-                            const startRaw = parts[0].replace(/\D/g, '');
-                            const endRaw = parts[1].replace(/\D/g, '');
-                            if (isIdInInterval(targetIdStr, startRaw, endRaw)) {
-                                studentAssignedRoom = roomName;
-                                break;
-                            }
-                        } else {
-                            // It's a single isolated ID inside the parenthesis
-                            const singleId = interval.replace(/\D/g, '');
-                            if (isIdInInterval(targetIdStr, singleId, null)) {
-                                studentAssignedRoom = roomName;
-                                break;
-                            }
-                        }
-                    }
-
-                    if (studentAssignedRoom) break; // Room found for this course, stop looping
-                }
-
-                if (studentAssignedRoom) {
+                if (selectedCourses.includes(rowLabel)) {
                     matches.push({
-                        courseTitle: row['Course Title'] || 'Unknown Course',
-                        courseCode: row['Course Code'] || 'Unknown Code',
-                        section: row['Section'] || 'N/A',
+                        courseTitle: title || 'Unknown Course',
+                        courseCode: code || 'Unknown Code',
+                        section: section || 'N/A',
                         date: row['Exam Date'] || 'Unknown Date',
                         time: row['Exam Time'] || 'Unknown Time',
                         teacher: row['Teacher'] || 'Unknown',
-                        room: studentAssignedRoom
+                        room: roomData // Displaying the entire room string directly natively
                     });
                 }
             });
