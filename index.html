@@ -42,9 +42,8 @@
                         <!-- Course Select -->
                         <div>
                             <label for="courseSelect" class="block text-sm font-semibold text-slate-700 mb-1.5 ">1. Select Course</label>
-                            <select id="courseSelect" class="w-full px-4 py-3 text-sm border-slate-300 border focus:ring-indigo-500 focus:border-indigo-500 rounded-lg outline-none transition-colors shadow-sm bg-white cursor-pointer appearance-none" onchange="handleCourseSelect(event)">
-                                <option value="">-- Choose a Course --</option>
-                            </select>
+                            <input type="text" id="courseSelect" list="courseDataList" placeholder="Type to search or select..." class="w-full px-4 py-3 text-sm border-slate-300 border focus:ring-indigo-500 focus:border-indigo-500 rounded-lg outline-none transition-colors shadow-sm bg-white" oninput="handleCourseSelect(event)">
+                            <datalist id="courseDataList"></datalist>
                         </div>
                         
                         <!-- Section Select & Add -->
@@ -191,8 +190,8 @@
         // --- Course Filter Logic ---
         function populateCourseList() {
             courseSectionsMap = {};
-            const courseSelect = document.getElementById('courseSelect');
-            if(!courseSelect) return;
+            const courseDataList = document.getElementById('courseDataList');
+            if(!courseDataList) return;
             
             GLOBAL_DATA.forEach(row => {
                 const code = row['Course Code'] ? row['Course Code'].toString().trim() : '';
@@ -211,17 +210,16 @@
             });
             
             // Build the primary course dropdown
-            courseSelect.innerHTML = '<option value="">-- Choose a Course --</option>';
+            courseDataList.innerHTML = '';
             Array.from(Object.keys(courseSectionsMap)).sort().forEach(courseKey => {
                 const opt = document.createElement('option');
                 opt.value = courseKey;
-                opt.textContent = courseKey;
-                courseSelect.appendChild(opt);
+                courseDataList.appendChild(opt);
             });
         }
 
         function handleCourseSelect(event) {
-            const courseKey = event.target.value;
+            const courseKey = event.target.value.trim();
             const sectionSelect = document.getElementById('sectionSelect');
             const addBtn = document.getElementById('addCourseBtn');
             
@@ -229,7 +227,8 @@
             sectionSelect.innerHTML = '<option value="">-- Choose Section --</option>';
             addBtn.disabled = true;
             
-            if (!courseKey) {
+            // Validate if the typed key actually exists in our data
+            if (!courseKey || !courseSectionsMap[courseKey]) {
                 sectionSelect.disabled = true;
                 return;
             }
