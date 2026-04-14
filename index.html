@@ -24,27 +24,45 @@
     <main class="w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden mt-4 sm:mt-10">
         
         <!-- Header Section -->
-        <header class="bg-indigo-600 px-6 py-10 sm:px-10 text-white text-center">
-            <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight mb-3">Exam Routine Search</h1>
-            <p class="text-indigo-100 text-sm sm:text-base max-w-2xl mx-auto">
+        <header class="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-10 sm:px-10 text-white text-center rounded-t-2xl">
+            <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight mb-3 drop-shadow-md">Exam Routine Search</h1>
+            <p class="text-indigo-100 text-sm sm:text-base max-w-2xl mx-auto opacity-90">
                 Instantly find your exam dates, times, and exact room allocations. No more manual searching through long spreadsheets.
             </p>
         </header>
 
         <!-- Search Section -->
-        <section class="p-6 sm:p-10 border-b border-slate-100">
-            <div class="max-w-2xl mx-auto space-y-6">
+        <section class="p-6 sm:p-10 border-b border-slate-100 bg-white">
+            <div class="max-w-3xl mx-auto space-y-6">
                 <!-- Course Filter Input -->
-                <div>
-                    <label for="courseSearch" class="block text-sm font-semibold text-slate-700 mb-1">Search & Select Your Courses</label>
-                    <p class="text-xs text-slate-500 mb-2">Type your course code or name to find your exact section, then click to add it to your list.</p>
-                    <input type="text" id="courseSearch" list="courseList" placeholder="e.g., ACT 111 (Sec D) or Financial Accounting..." 
-                        class="w-full px-4 py-3 sm:text-sm border-slate-300 border focus:ring-indigo-500 focus:border-indigo-500 rounded-lg outline-none transition-colors shadow-sm" 
-                        onchange="handleAddCourse(event)" onkeypress="if(event.key === 'Enter') handleAddCourse(event)">
-                    <datalist id="courseList"></datalist>
+                <div class="bg-slate-50 p-5 rounded-xl border border-slate-100 shadow-inner">
+                    <p class="text-sm text-slate-500 mb-4 text-center">Select your course first, then choose your specific section to add it to your schedule.</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                        <!-- Course Select -->
+                        <div>
+                            <label for="courseSelect" class="block text-sm font-semibold text-slate-700 mb-1.5 ">1. Select Course</label>
+                            <select id="courseSelect" class="w-full px-4 py-3 text-sm border-slate-300 border focus:ring-indigo-500 focus:border-indigo-500 rounded-lg outline-none transition-colors shadow-sm bg-white cursor-pointer appearance-none" onchange="handleCourseSelect(event)">
+                                <option value="">-- Choose a Course --</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Section Select & Add -->
+                        <div>
+                            <label for="sectionSelect" class="block text-sm font-semibold text-slate-700 mb-1.5">2. Select Section</label>
+                            <div class="flex gap-2">
+                                <select id="sectionSelect" class="w-full px-4 py-3 text-sm border-slate-300 border focus:ring-indigo-500 focus:border-indigo-500 rounded-lg outline-none transition-colors shadow-sm bg-white disabled:bg-slate-100 disabled:text-slate-400 appearance-none" disabled>
+                                    <option value="">-- Choose Section --</option>
+                                </select>
+                                <button id="addCourseBtn" onclick="handleAddCourse()" disabled class="px-5 py-3 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg shadow-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 flex items-center justify-center min-w-[80px]">
+                                    Add
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                     
                     <!-- Selected Course Badges -->
-                    <div id="courseChips" class="flex flex-wrap gap-2 mt-3"></div>
+                    <div id="courseChips" class="flex flex-wrap gap-2 mt-5 empty:hidden"></div>
                 </div>
 
                 <button onclick="handleSearch()" 
@@ -167,36 +185,94 @@
             }
         }
 
+        // Map to store course relationships: "Code - Title" -> Set of Sections
+        let courseSectionsMap = {};
+
         // --- Course Filter Logic ---
         function populateCourseList() {
-            const courseList = document.getElementById('courseList');
-            if(!courseList) return;
-            courseList.innerHTML = '';
-            const unique = new Set();
+            courseSectionsMap = {};
+            const courseSelect = document.getElementById('courseSelect');
+            if(!courseSelect) return;
+            
             GLOBAL_DATA.forEach(row => {
                 const code = row['Course Code'] ? row['Course Code'].toString().trim() : '';
                 const title = row['Course Title'] ? row['Course Title'].toString().trim() : '';
                 const section = row['Section'] ? row['Section'].toString().trim() : '';
+                
                 if(code || title) {
-                    const label = `${code} - ${title} (Sec ${section})`;
-                    unique.add(label);
+                    const key = `${code} - ${title}`;
+                    if (!courseSectionsMap[key]) {
+                        courseSectionsMap[key] = new Set();
+                    }
+                    if (section) {
+                        courseSectionsMap[key].add(section);
+                    }
                 }
             });
-            Array.from(unique).sort().forEach(course => {
+            
+            // Build the primary course dropdown
+            courseSelect.innerHTML = '<option value="">-- Choose a Course --</option>';
+            Array.from(Object.keys(courseSectionsMap)).sort().forEach(courseKey => {
                 const opt = document.createElement('option');
-                opt.value = course;
-                courseList.appendChild(opt);
+                opt.value = courseKey;
+                opt.textContent = courseKey;
+                courseSelect.appendChild(opt);
             });
         }
 
-        function handleAddCourse(event) {
-            const val = event.target.value.trim();
-            if(!val) return;
-            if(!selectedCourses.includes(val)) {
-                selectedCourses.push(val);
+        function handleCourseSelect(event) {
+            const courseKey = event.target.value;
+            const sectionSelect = document.getElementById('sectionSelect');
+            const addBtn = document.getElementById('addCourseBtn');
+            
+            // Reset state
+            sectionSelect.innerHTML = '<option value="">-- Choose Section --</option>';
+            addBtn.disabled = true;
+            
+            if (!courseKey) {
+                sectionSelect.disabled = true;
+                return;
+            }
+            
+            // Enable section dropdow and populate
+            sectionSelect.disabled = false;
+            const sections = Array.from(courseSectionsMap[courseKey]).sort();
+            
+            sections.forEach(sec => {
+                const opt = document.createElement('option');
+                opt.value = sec;
+                opt.textContent = `Section ${sec}`;
+                sectionSelect.appendChild(opt);
+            });
+            
+            // Allow Add when a specific section is chosen
+            sectionSelect.onchange = (e) => {
+                addBtn.disabled = !e.target.value;
+            };
+        }
+
+        function handleAddCourse() {
+            const courseSelect = document.getElementById('courseSelect');
+            const sectionSelect = document.getElementById('sectionSelect');
+            const addBtn = document.getElementById('addCourseBtn');
+            
+            const courseKey = courseSelect.value;
+            const section = sectionSelect.value;
+            
+            if(!courseKey || !section) return;
+            
+            const fullLabel = `${courseKey} (Sec ${section})`;
+            if(!selectedCourses.includes(fullLabel)) {
+                selectedCourses.push(fullLabel);
                 renderChips();
             }
-            event.target.value = '';
+            
+            // Reset for next addition
+            courseSelect.value = '';
+            sectionSelect.innerHTML = '<option value="">-- Choose Section --</option>';
+            sectionSelect.disabled = true;
+            addBtn.disabled = true;
+            
             handleSearch();
         }
         
