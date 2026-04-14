@@ -121,7 +121,7 @@
     <footer class="mt-12 text-center text-sm text-slate-500 pb-8 fade-in">
         <p>Built with ❤️ for the UIU community</p>
         <p class="mt-1">
-            Replace <code class="bg-slate-200 px-1.5 py-0.5 rounded text-slate-700 select-all">Mid-term-exam-schedule_SoSE_261_notice-board.xlsx</code> when final exams arrive.
+            Replace <code class="bg-slate-200 px-1.5 py-0.5 rounded text-slate-700 select-all">routine.xlsx</code> when final exams arrive.
         </p>
         <p class="mt-1">
             <a href="#" class="text-indigo-500 hover:underline">View on GitHub</a>
@@ -131,7 +131,7 @@
     <script>
         // Use the exact filename from the user's prompt. 
         // NOTE: Make sure the file exists in the same directory as this index.html on Github Pages
-        const TARGET_XLSX = 'Mid-term-exam-schedule_SoSE_261_notice-board.xlsx';
+        const TARGET_XLSX = 'routine.xlsx';
         
         let GLOBAL_DATA = null;
         let selectedCourses = [];
@@ -189,8 +189,10 @@
             GLOBAL_DATA.forEach(row => {
                 const code = row['Course Code'] ? row['Course Code'].toString().trim() : '';
                 const title = row['Course Title'] ? row['Course Title'].toString().trim() : '';
+                const section = row['Section'] ? row['Section'].toString().trim() : '';
                 if(code || title) {
-                    unique.add(`${code} - ${title}`);
+                    const label = `${code} - ${title} (Sec ${section})`;
+                    unique.add(label);
                 }
             });
             Array.from(unique).sort().forEach(course => {
@@ -296,7 +298,8 @@
 
                 const code = row['Course Code'] ? row['Course Code'].toString().trim() : '';
                 const title = row['Course Title'] ? row['Course Title'].toString().trim() : '';
-                const rowLabel = `${code} - ${title}`;
+                const section = row['Section'] ? row['Section'].toString().trim() : '';
+                const rowLabel = `${code} - ${title} (Sec ${section})`;
 
                 // Skip if user set course filters and this row isn't one of them
                 if (selectedCourses.length > 0 && !selectedCourses.includes(rowLabel)) {
