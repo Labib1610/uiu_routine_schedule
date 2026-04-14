@@ -213,54 +213,52 @@
 
         // The exact mapping processor
         function isIdInInterval(studentId, startRaw, endRaw) {
-            // Ensure strings
-            studentId = studentId || "";
-            startRaw = startRaw || "";
-            endRaw = endRaw || "";
+            studentId = String(studentId).trim();
+            startRaw = String(startRaw).trim();
+            
+            // 1. Single ID match (When the routine lists a specific student, no hyphen)
+            if (!endRaw) {
+                return studentId === startRaw;
+            }
+            
+            endRaw = String(endRaw).trim();
 
-            // Safety net: Sometimes Excel files abbreviate the end range (e.g., "015241022 - 063")
-            // If the end range is just the roll number, we prepend the prefix from startRaw
+            // 2. Auto-complete short end ranges (e.g., "0152410022 - 63" becomes "0152410063")
             if (endRaw.length <= 4 && startRaw.length >= 6) {
                 endRaw = startRaw.substring(0, 6) + endRaw;
             }
 
-            // 1. Strictly extract the 6-digit Prefix (Dept + Batch)
+            // 3. Strictly extract the 6-digit Prefix (Dept + Batch)
             let sPrefStr = studentId.substring(0, 6);
             let aPrefStr = startRaw.substring(0, 6);
             let bPrefStr = endRaw.substring(0, 6);
 
-            // 2. Extract the remaining digits as the Roll Number
+            // 4. Extract the remaining digits as the Roll Number
             let sRollNum = parseInt(studentId.substring(6) || "0", 10);
             let aRollNum = parseInt(startRaw.substring(6) || "0", 10);
             let bRollNum = parseInt(endRaw.substring(6) || "0", 10);
 
-            // LOGIC 1: Sort them out! If the student's 6-digit prefix doesn't match 
-            // the start or end prefix of this room, they absolutely do not belong here.
+            // STRICT FILTER: If the student's 6-digit prefix doesn't EXACTLY match
+            // the start prefix or the end prefix, they DO NOT belong in this interval.
+            // This permanently prevents Department 015 from leaking into other departments.
             if (sPrefStr !== aPrefStr && sPrefStr !== bPrefStr) {
                 return false;
             }
 
-            // LOGIC 2: Compare rolls within the matched prefix
+            // Compare rolls within the matched prefix
             if (aPrefStr === bPrefStr) {
-                // The interval is for a single batch (Most common scenario)
+                // Standard interval within the same batch
                 if (sPrefStr === aPrefStr) {
                     return sRollNum >= aRollNum && sRollNum <= bRollNum;
                 }
             } else {
-                // Rare scenario: The interval spans across two different batches
-                let sPref = parseInt(sPrefStr, 10);
-                let aPref = parseInt(aPrefStr, 10);
-                let bPref = parseInt(bPrefStr, 10);
-
-                if (sPref === aPref) {
-                    return sRollNum >= aRollNum;
-                } else if (sPref === bPref) {
-                    return sRollNum <= bRollNum;
-                } else if (sPref > aPref && sPref < bPref) {
-                    return true;
+                // Rare interval explicitly bridging two specific adjacent batches
+                if (sPrefStr === aPrefStr) {
+                    return sRollNum >= aRollNum; // From start roll upwards
+                } else if (sPrefStr === bPrefStr) {
+                    return sRollNum <= bRollNum; // Up to end roll
                 }
             }
-            
             return false;
         }
 
@@ -268,24 +266,45 @@
             const matches = [];
 
             GLOBAL_DATA.forEach(row => {
-                const roomData = row['Room'] || '';
+                const roomData = String(row['Room'] || '');
                 if (!roomData.trim()) return;
 
-                // Improved Regex: Added \s* to tolerate accidental spaces in Excel like "( 015241022 - 015241063 )"
-                const intervalRegex = /([a-zA-Z0-9\s]+?)\s*\(\s*([\da-zA-Z]+)\s*-\s*([\da-zA-Z]+)\s*\)/g;
-                let regexLookup;
+                // NEW REGEX: Separates the Room Name from the Parentheses containing the IDs.
+                // It securely captures everything inside the parenthesis, even commas.
+                const roomBlockRegex = /([a-zA-Z0-9\s\-_&]+?)\s*\(([^)]+)\)/g;
+                let blockMatch;
                 let studentAssignedRoom = null;
 
-                while ((regexLookup = intervalRegex.exec(roomData)) !== null) {
-                    const roomName = regexLookup[1].trim();
-                    const startRaw = regexLookup[2].replace(/\D/g, '');
-                    const endRaw = regexLookup[3].replace(/\D/g, '');
+                while ((blockMatch = roomBlockRegex.exec(roomData)) !== null) {
+                    const roomName = blockMatch[1].trim();
+                    const idsContent = blockMatch[2]; // Everything inside the ( )
 
-                    // Range mapping using exact Prefix-Roll split logic
-                    if (isIdInInterval(targetIdStr, startRaw, endRaw)) {
-                        studentAssignedRoom = roomName;
-                        break; // Found room for this exam, skip remaining intervals in this row.
+                    // Split by commas to handle multi-range rooms (e.g., "015...020, 015...060")
+                    const intervals = idsContent.split(',');
+
+                    for (let interval of intervals) {
+                        interval = interval.trim();
+                        
+                        if (interval.includes('-')) {
+                            // It's a standard range
+                            const parts = interval.split('-');
+                            const startRaw = parts[0].replace(/\D/g, '');
+                            const endRaw = parts[1].replace(/\D/g, '');
+                            if (isIdInInterval(targetIdStr, startRaw, endRaw)) {
+                                studentAssignedRoom = roomName;
+                                break;
+                            }
+                        } else {
+                            // It's a single isolated ID inside the parenthesis
+                            const singleId = interval.replace(/\D/g, '');
+                            if (isIdInInterval(targetIdStr, singleId, null)) {
+                                studentAssignedRoom = roomName;
+                                break;
+                            }
+                        }
                     }
+
+                    if (studentAssignedRoom) break; // Room found for this course, stop looping
                 }
 
                 if (studentAssignedRoom) {
