@@ -33,26 +33,13 @@
 
         <!-- Search Section -->
         <section class="p-6 sm:p-10 border-b border-slate-100">
-            <div class="max-w-2xl mx-auto space-y-6">
+            <div class="max-w-md mx-auto space-y-6">
                 <!-- ID Input -->
                 <div>
-                    <label for="studentId" class="block text-sm font-semibold text-slate-700 mb-2">1. Your exact Student ID <span class="text-red-500">*</span></label>
+                    <label for="studentId" class="block text-sm font-semibold text-slate-700 mb-2">Your exact Student ID <span class="text-red-500">*</span></label>
                     <input type="text" id="studentId" placeholder="e.g., 011201341" 
                         class="w-full px-4 py-3 sm:text-sm border-slate-300 border focus:ring-indigo-500 focus:border-indigo-500 rounded-lg outline-none transition-colors shadow-sm" 
                         onkeypress="if(event.key === 'Enter') handleSearch()">
-                </div>
-                
-                <!-- Course Filter Input -->
-                <div>
-                    <label for="courseSearch" class="block text-sm font-semibold text-slate-700 mb-1">2. Select Your Courses (To filter accurately)</label>
-                    <p class="text-xs text-slate-500 mb-2">Pick your registered courses so you don't see exams for other people with adjacent IDs.</p>
-                    <input type="text" id="courseSearch" list="courseList" placeholder="Type course code or name and select..." 
-                        class="w-full px-4 py-3 sm:text-sm border-slate-300 border focus:ring-indigo-500 focus:border-indigo-500 rounded-lg outline-none transition-colors shadow-sm" 
-                        onchange="handleAddCourse(event)" onkeypress="if(event.key === 'Enter') handleAddCourse(event)">
-                    <datalist id="courseList"></datalist>
-                    
-                    <!-- Selected Course Badges -->
-                    <div id="courseChips" class="flex flex-wrap gap-2 mt-3"></div>
                 </div>
 
                 <button onclick="handleSearch()" 
@@ -60,7 +47,7 @@
                     <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                     </svg>
-                    Show My Exact Routine
+                    Search Routine
                 </button>
             </div>
 
@@ -134,7 +121,6 @@
         const TARGET_XLSX = 'routine.xlsx';
         
         let GLOBAL_DATA = null;
-        let selectedCourses = [];
 
         // Start initialization automatically
         window.addEventListener('DOMContentLoaded', async () => {
@@ -166,7 +152,6 @@
                 const sheet = workbook.Sheets[mainSheetName];
                 // Using defval to ensure empty cells don't break key lookups
                 GLOBAL_DATA = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-                populateCourseList();
                 showLoader(false);
                 
                 // If user typed ID while it was loading
@@ -178,68 +163,6 @@
                 alert("Failed to parse the Excel file. Please ensure it's a valid XLSX.");
                 showLoader(false);
             }
-        }
-
-        // --- Course Filter Logic ---
-        function populateCourseList() {
-            const courseList = document.getElementById('courseList');
-            if(!courseList) return;
-            courseList.innerHTML = '';
-            const unique = new Set();
-            GLOBAL_DATA.forEach(row => {
-                const code = row['Course Code'] ? row['Course Code'].toString().trim() : '';
-                const title = row['Course Title'] ? row['Course Title'].toString().trim() : '';
-                const section = row['Section'] ? row['Section'].toString().trim() : '';
-                if(code || title) {
-                    const label = `${code} - ${title} (Sec ${section})`;
-                    unique.add(label);
-                }
-            });
-            Array.from(unique).sort().forEach(course => {
-                const opt = document.createElement('option');
-                opt.value = course;
-                courseList.appendChild(opt);
-            });
-        }
-
-        function handleAddCourse(event) {
-            const val = event.target.value.trim();
-            if(!val) return;
-            if(!selectedCourses.includes(val)) {
-                selectedCourses.push(val);
-                renderChips();
-            }
-            event.target.value = '';
-            
-            // Auto search if ID already provided
-            if (document.getElementById('studentId').value.trim()) {
-                handleSearch();
-            }
-        }
-        
-        function removeCourseBox(val) {
-            selectedCourses = selectedCourses.filter(c => c !== val);
-            renderChips();
-            if (document.getElementById('studentId').value.trim()) {
-                handleSearch();
-            }
-        }
-        
-        function renderChips() {
-            const container = document.getElementById('courseChips');
-            container.innerHTML = '';
-            selectedCourses.forEach(c => {
-                const el = document.createElement('span');
-                el.className = 'inline-flex items-center py-1.5 pl-3 pr-2 rounded-full text-sm font-medium bg-indigo-100 text-indigo-800 break-words';
-                // Using maximum widths and text truncation so huge titles don't stretch
-                el.innerHTML = `<span class="truncate max-w-[200px] sm:max-w-xs" title="${c}">${c}</span> 
-                <button type="button" onclick="removeCourseBox('${c}')" class="flex-shrink-0 ml-1.5 h-5 w-5 rounded-full inline-flex items-center justify-center text-indigo-400 hover:bg-indigo-300 hover:text-indigo-600 focus:outline-none">
-                    <svg class="h-3 w-3" stroke="currentColor" fill="none" viewBox="0 0 8 8">
-                        <path stroke-linecap="round" stroke-width="1.5" d="M1 1l6 6m0-6L1 7" />
-                    </svg>
-                </button>`;
-                container.appendChild(el);
-            });
         }
 
         // Triggered when file selected via fallback
@@ -277,34 +200,72 @@
                 return;
             }
 
-            // Extract numeric part for comparison
-            const numericId = parseInt(idRaw.replace(/\D/g, ''), 10);
+            // Extract pure numbers
+            const rawNumericStr = idRaw.replace(/\D/g, '');
             
             // UI Triggers
             document.getElementById('resultsSection').classList.remove('hidden');
             document.getElementById('displayId').innerText = idRaw;
             
-            const results = processMatches(numericId);
+            const results = processMatches(rawNumericStr);
             renderCards(results);
         }
 
         // The exact mapping processor
-        function processMatches(numericId) {
+        function isIdInInterval(studentId, startRaw, endRaw) {
+            // Ensure strings
+            studentId = studentId || "";
+            startRaw = startRaw || "";
+            endRaw = endRaw || "";
+
+            // User's Rule: Extract the 6-digit prefix (Dept + Batch)
+            let sPrefStr = studentId.substring(0, 6);
+            let sRollNum = parseInt(studentId.substring(6) || "0", 10);
+            
+            let aPrefStr = startRaw.substring(0, 6);
+            let aRollNum = parseInt(startRaw.substring(6) || "0", 10);
+            
+            let bPrefStr = endRaw.substring(0, 6);
+            let bRollNum = parseInt(endRaw.substring(6) || "0", 10);
+            
+            // Compare prefixes numerically to logically see if student prefix is between start and end prefixes
+            let sPref = parseInt(sPrefStr, 10);
+            let aPref = parseInt(aPrefStr, 10);
+            let bPref = parseInt(bPrefStr, 10);
+
+            // If the interval boundaries share the exact same 6-digit prefix
+            if (aPref === bPref) {
+                // The student must also share this exact prefix!
+                if (sPref !== aPref) return false;
+                // Since prefixes match perfectly, we verify if the student's roll is between the bounds
+                return sRollNum >= aRollNum && sRollNum <= bRollNum;
+            } else {
+                // If the interval spans multiple prefixes (e.g. from Batch 201 to Batch 233)
+                // First, immediately disregard if the student's prefix is outside this broader block
+                if (sPref < aPref || sPref > bPref) return false;
+                
+                // If the student's prefix exactly equals the start boundary prefix
+                if (sPref === aPref) {
+                    return sRollNum >= aRollNum; // we only care that they aren't before the start roll
+                } 
+                // If the student's prefix exactly equals the end boundary prefix
+                else if (sPref === bPref) {
+                    return sRollNum <= bRollNum; // we only care that they aren't after the end roll
+                } 
+                // The student's prefix is strictly greater than start prefix AND less than end prefix.
+                // In university roll structures, the student is unconditionally included inside this interval.
+                else {
+                    return true;
+                }
+            }
+        }
+
+        function processMatches(targetIdStr) {
             const matches = [];
 
             GLOBAL_DATA.forEach(row => {
                 const roomData = row['Room'] || '';
                 if (!roomData.trim()) return;
-
-                const code = row['Course Code'] ? row['Course Code'].toString().trim() : '';
-                const title = row['Course Title'] ? row['Course Title'].toString().trim() : '';
-                const section = row['Section'] ? row['Section'].toString().trim() : '';
-                const rowLabel = `${code} - ${title} (Sec ${section})`;
-
-                // Skip if user set course filters and this row isn't one of them
-                if (selectedCourses.length > 0 && !selectedCourses.includes(rowLabel)) {
-                    return;
-                }
 
                 // Format -> RoomName (011201001-011201100) ...
                 const intervalRegex = /([a-zA-Z0-9\s]+?)\s*\(([\da-zA-Z]+)-([\da-zA-Z]+)\)/g;
@@ -313,14 +274,11 @@
 
                 while ((regexLookup = intervalRegex.exec(roomData)) !== null) {
                     const roomName = regexLookup[1].trim();
-                    const startRaw = regexLookup[2];
-                    const endRaw = regexLookup[3];
+                    const startRaw = regexLookup[2].replace(/\D/g, '');
+                    const endRaw = regexLookup[3].replace(/\D/g, '');
 
-                    const startNum = parseInt(startRaw.replace(/\D/g, ''), 10);
-                    const endNum = parseInt(endRaw.replace(/\D/g, ''), 10);
-
-                    // Range mapping
-                    if (numericId >= startNum && numericId <= endNum) {
+                    // Range mapping using exact Prefix-Roll split logic
+                    if (isIdInInterval(targetIdStr, startRaw, endRaw)) {
                         studentAssignedRoom = roomName;
                         break; // Important: found room for this exam, skip remaining intervals in this row.
                     }
