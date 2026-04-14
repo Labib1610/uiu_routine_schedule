@@ -6,54 +6,56 @@
     <title>My Exam Routine</title>
     <!-- Tailwind CSS for UI -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- SheetJS for parsing XLSX in browser -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #f8fafc; }
-        .exam-card { transition: all 0.2s ease; border-left: 4px solid #6366f1; }
-        .exam-card:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.1), 0 4px 6px -2px rgba(99, 102, 241, 0.05); }
-        .fade-in { animation: fadeIn 0.4s ease-out; }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
+        body { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; }
+        .fade-in { opacity: 0; animation: slideUpFade 0.5s ease-out forwards; }
+        @keyframes slideUpFade {
+            from { opacity: 0; transform: translateY(20px); }
             to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
-<body class="min-h-screen text-slate-800 px-4 py-8 sm:px-6 lg:px-8 flex flex-col items-center">
+<body class="min-h-screen text-slate-800 px-4 py-8 sm:px-6 lg:px-8 flex flex-col items-center bg-slate-50 relative overflow-x-hidden">
+    <!-- Ambient Glow (Mesh Gradient) -->
+    <div class="fixed top-0 left-0 w-96 h-96 bg-indigo-300/30 rounded-full mix-blend-multiply filter blur-[100px] pointer-events-none -z-10"></div>
+    <div class="fixed bottom-0 right-0 w-96 h-96 bg-teal-200/30 rounded-full mix-blend-multiply filter blur-[100px] pointer-events-none -z-10"></div>
 
-    <main class="w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden mt-4 sm:mt-10">
+    <main class="w-full max-w-5xl mx-auto flex flex-col mt-4 sm:mt-10">
         
         <!-- Header Section -->
-        <header class="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-10 sm:px-10 text-white text-center rounded-t-2xl">
+        <header class="bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-10 sm:px-10 text-white text-center rounded-2xl shadow-md mb-8">
             <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight mb-3 drop-shadow-md">Exam Routine Search</h1>
             <p class="text-indigo-100 text-sm sm:text-base max-w-2xl mx-auto opacity-90">
                 Instantly find your exam dates, times, and exact room allocations. No more manual searching through long spreadsheets.
             </p>
         </header>
 
-        <!-- Search Section -->
-        <section class="p-6 sm:p-10 border-b border-slate-100 bg-white">
+        <!-- Search Section (Sticky) -->
+        <section class="sticky top-4 z-50 rounded-2xl bg-white/70 backdrop-blur-md border border-white/50 shadow-sm p-6 mb-8">
             <div class="max-w-3xl mx-auto space-y-6">
                 <!-- Course Filter Input -->
-                <div class="bg-slate-50 p-5 rounded-xl border border-slate-100 shadow-inner">
-                    <p class="text-sm text-slate-500 mb-4 text-center">Select your course first, then choose your specific section to add it to your schedule.</p>
+                <div class="bg-white/50 backdrop-blur-sm p-6 rounded-xl border border-slate-200/50 shadow-inner">
+                    <p class="text-sm text-slate-500 mb-4 text-center font-medium">Select your course first, then choose your specific section to add it to your schedule.</p>
                     
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
                         <!-- Course Select -->
                         <div class="relative">
                             <label for="courseSelect" class="block text-sm font-semibold text-slate-700 mb-1.5 ">1. Select Course</label>
-                            <input type="text" id="courseSelect" placeholder="Type to search or select..." autocomplete="off" class="w-full px-4 py-3 text-sm border-slate-300 border focus:ring-indigo-500 focus:border-indigo-500 rounded-lg outline-none transition-colors shadow-sm bg-white" oninput="handleCourseInput(event)" onfocus="handleCourseInput(event)">
-                            <ul id="courseDropdown" class="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"></ul>
+                            <input type="text" id="courseSelect" placeholder="Type to search or select..." autocomplete="off" class="w-full h-14 px-4 text-lg border-slate-200 border focus:ring-2 focus:ring-indigo-500 rounded-xl outline-none transition-all shadow-sm bg-white/50 backdrop-blur-sm" oninput="handleCourseInput(event)" onfocus="handleCourseInput(event)">
+                            <ul id="courseDropdown" class="absolute z-10 w-full mt-2 bg-white/90 backdrop-blur-xl border border-slate-200 rounded-xl shadow-xl max-h-64 overflow-y-auto hidden"></ul>
                         </div>
                         
                         <!-- Section Select & Add -->
                         <div>
                             <label for="sectionSelect" class="block text-sm font-semibold text-slate-700 mb-1.5">2. Select Section</label>
-                            <div class="flex gap-2">
-                                <select id="sectionSelect" class="w-full px-4 py-3 text-sm border-slate-300 border focus:ring-indigo-500 focus:border-indigo-500 rounded-lg outline-none transition-colors shadow-sm bg-white disabled:bg-slate-100 disabled:text-slate-400 appearance-none" disabled>
+                            <div class="flex gap-3">
+                                <select id="sectionSelect" class="w-full h-14 px-4 text-lg border-slate-200 border focus:ring-2 focus:ring-indigo-500 rounded-xl outline-none transition-all shadow-sm bg-white/50 backdrop-blur-sm disabled:bg-slate-100/50 disabled:text-slate-400 appearance-none cursor-pointer disabled:cursor-not-allowed" disabled>
                                     <option value="">-- Choose Section --</option>
                                 </select>
-                                <button id="addCourseBtn" onclick="handleAddCourse()" disabled class="px-5 py-3 bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg shadow-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 flex items-center justify-center min-w-[80px]">
+                                <button id="addCourseBtn" onclick="handleAddCourse()" disabled class="px-6 h-14 bg-gradient-to-r from-indigo-600 to-blue-500 hover:from-indigo-700 hover:to-blue-600 text-white shadow-md hover:shadow-lg rounded-xl font-medium transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 flex items-center justify-center min-w-[90px]">
                                     Add
                                 </button>
                             </div>
@@ -65,8 +67,8 @@
                 </div>
 
                 <button onclick="handleSearch()" 
-                    class="w-full inline-flex items-center justify-center px-6 py-3 border border-transparent text-sm font-semibold rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors shadow-sm">
-                    <svg class="-ml-1 mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    class="w-full inline-flex items-center justify-center px-6 h-14 bg-gradient-to-r from-indigo-600 to-blue-500 hover:from-indigo-700 hover:to-blue-600 text-white shadow-md hover:shadow-lg rounded-xl font-bold transition-all duration-300 text-lg">
+                    <svg class="-ml-1 mr-2 h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                     </svg>
                     Show My Exam Schedule
@@ -74,12 +76,9 @@
             </div>
 
             <!-- Loader -->
-            <div id="loadingBox" class="hidden mt-8 text-center text-indigo-600 fade-in">
-                <svg class="animate-spin h-8 w-8 mx-auto mb-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <p class="text-sm font-medium animate-pulse">Loading Excel Routine...</p>
+            <div id="loadingBox" class="hidden mt-8 text-center fade-in">
+                <div class="inline-block w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-3"></div>
+                <p class="text-sm font-medium text-indigo-600 animate-pulse">Loading Excel Routine...</p>
             </div>
 
             <!-- Local file fallback -->
@@ -105,22 +104,22 @@
         </section>
 
         <!-- Results Section -->
-        <section id="resultsSection" class="p-6 sm:p-10 bg-slate-50 hidden fade-in">
-            <h2 class="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
-                <svg class="w-6 h-6 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                Matches for <span id="displayId" class="text-indigo-600 font-mono tracking-wider ml-1 px-2 py-1 rounded">Your Selected Courses</span>
+        <section id="resultsSection" class="p-6 sm:p-10 hidden fade-in w-full">
+            <h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                <svg class="w-7 h-7 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                Matches for <span id="displayId" class="text-indigo-600 font-mono tracking-wider ml-1 px-3 py-1 rounded-xl bg-indigo-50 border border-indigo-100/50">Your Selected Courses</span>
             </h2>
 
-            <div id="emptyState" class="hidden text-center py-12">
-                <svg class="mx-auto h-16 w-16 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div id="emptyState" class="hidden text-center py-16">
+                <svg class="mx-auto h-20 w-20 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
-                <h3 class="mt-4 text-lg font-medium text-slate-900">No Courses Selected</h3>
-                <p class="mt-1 text-slate-500 max-w-sm mx-auto">Please select at least one course from the search bar above to see your routine.</p>
+                <h3 class="mt-4 text-lg font-medium text-slate-900">No exams found for this selection.</h3>
+                <p class="mt-2 text-slate-400 max-w-sm mx-auto">Time to relax, or double-check the routine!</p>
             </div>
 
-            <!-- Grid for Cards -->
-            <div id="examGrid" class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+            <!-- Grid for Cards (Bento Box) -->
+            <div id="examGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6 mt-8">
                 <!-- Data will be injected here via JS -->
             </div>
         </section>
@@ -411,44 +410,47 @@
             } else {
                 emptyState.classList.add('hidden');
                 
-                matches.forEach(m => {
+                matches.forEach((m, index) => {
                     const el = document.createElement('div');
-                    el.className = 'exam-card bg-white rounded-xl p-5 shadow-sm fade-in';
+                    el.className = 'bg-white/80 backdrop-blur-lg border border-white/60 rounded-2xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:-translate-y-1.5 hover:shadow-[0_20px_40px_rgb(0,0,0,0.08)] transition-all duration-300 ease-out fade-in flex flex-col';
+                    el.style.animationDelay = `${index * 100}ms`;
                     
                     el.innerHTML = `
-                        <div class="flex justify-between items-start mb-4">
+                        <div class="flex justify-between items-start">
                             <div class="pr-3">
-                                <h3 class="font-bold text-slate-800 text-lg leading-tight">${m.courseTitle}</h3>
-                                <p class="text-indigo-600 font-mono text-sm mt-1">${m.courseCode}</p>
+                                <h3 class="text-lg font-bold text-slate-800 leading-tight">${m.courseTitle}</h3>
+                                <p class="text-sm font-mono text-indigo-500/80 tracking-wide mt-1">${m.courseCode}</p>
                             </div>
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 whitespace-nowrap">
+                            <span class="rounded-full px-3 py-1 text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100 whitespace-nowrap">
                                 Sec ${m.section}
                             </span>
                         </div>
                         
-                        <div class="bg-slate-50 rounded-lg p-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm border border-slate-100">
+                        <hr class="border-t border-slate-100 my-4">
+                        
+                        <div class="grid grid-cols-2 gap-y-3 gap-x-4">
                             <!-- Date -->
-                            <div class="flex items-center text-slate-700">
+                            <div class="flex items-center text-sm font-medium text-slate-600">
                                 <svg class="w-4 h-4 mr-2 text-indigo-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                                <span class="font-medium">${m.date}</span>
+                                <span>${m.date}</span>
                             </div>
                             
                             <!-- Time -->
-                            <div class="flex items-center text-slate-700">
+                            <div class="flex items-center text-sm font-medium text-slate-600">
                                 <svg class="w-4 h-4 mr-2 text-indigo-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                <span class="font-medium">${m.time}</span>
-                            </div>
-                            
-                            <!-- Room -->
-                            <div class="flex items-center text-slate-700 sm:col-span-2">
-                                <svg class="w-4 h-4 mr-2 text-indigo-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
-                                <span>Room: <strong class="text-slate-900">${m.room}</strong></span>
+                                <span>${m.time}</span>
                             </div>
                             
                             <!-- Teacher -->
-                            <div class="flex items-center text-slate-700 sm:col-span-2 mt-1 pt-3 border-t border-slate-200">
+                            <div class="flex items-center text-sm text-slate-500 col-span-2">
                                 <svg class="w-4 h-4 mr-2 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-                                <span>Faculty Initials: <span class="text-slate-600">${m.teacher}</span></span>
+                                <span>Faculty Initials: <span class="font-medium">${m.teacher}</span></span>
+                            </div>
+
+                            <!-- Room -->
+                            <div class="col-span-2 mt-2 bg-emerald-50 border border-emerald-100 rounded-lg p-3 flex items-center gap-2">
+                                <svg class="w-5 h-5 text-emerald-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+                                <span class="text-emerald-800 font-bold text-lg">Room: ${m.room}</span>
                             </div>
                         </div>
                     `;
